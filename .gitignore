@@ -1,0 +1,6 @@
+Z_Arquivo_Morto/
+*.log
+*.tmp
+.env
+.vscode/
+__pycache__/
