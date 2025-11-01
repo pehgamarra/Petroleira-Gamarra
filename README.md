@@ -15,7 +15,7 @@
 ---
 
 ## 🗂 Estrutura do Projeto
-
+```
 pretoleira_gamarra/
 │
 ├── src/
@@ -43,7 +43,7 @@ pretoleira_gamarra/
 │
 └── docs/
 └── data_dictionary.md # Descrição detalhada das colunas
-
+```
 ---
 
 ## 🛠 Funcionalidades
