@@ -1,0 +1,58 @@
+### SANITY CHECKS - RELATÓRIO FINAL ###
+
+Total de registros: 2520
+Período: 2005-01-01 00:00:00 → 2025-12-01 00:00:00
+
+Colunas do dataset:
+ - campo_id
+ - nome_campo
+ - estado
+ - tipo_petroleo
+ - data
+ - producao_barris
+ - preco_brl
+ - receita
+ - custo_operacional
+ - lucro_bruto
+ - custo_variavel_brl
+ - custo_fixo_brl
+ - margem_bruta
+ - admin_brl
+ - manutencao_brl
+ - logistica_brl
+ - share_admin
+ - share_manut
+ - share_logistica
+ - custo_geral_brl
+ - lucro_liquido_brl
+
+Resumo Financeiro:
+                                data  producao_total_barris  \
+count                            252                 252.00   
+mean   2015-06-16 20:11:25.714285824             9066134.81   
+min              2005-01-01 00:00:00             1578763.79   
+25%              2010-03-24 06:00:00             8257721.13   
+50%              2015-06-16 00:00:00             9396167.73   
+75%              2020-09-08 12:00:00            10740997.14   
+max              2025-12-01 00:00:00            13503882.01   
+std                              NaN             2536384.03   
+
+       receita_total_brl  custo_operacional_total_brl  custo_geral_total_brl  \
+count       2.520000e+02                 2.520000e+02                 252.00   
+mean        1.435601e+09                 4.533472e+08              163865.63   
+min         2.494497e+08                 7.894819e+07              114000.00   
+25%         9.738926e+08                 4.129161e+08              138249.09   
+50%         1.367429e+09                 4.698584e+08              161269.97   
+75%         1.871078e+09                 5.370961e+08              187919.15   
+max         2.987085e+09                 6.752441e+08              227570.02   
+std         6.053983e+08                 1.268289e+08               29880.93   
+
+       lucro_total_brl  
+count     2.520000e+02  
+mean      9.820895e+08  
+min       1.617934e+08  
+25%       5.503778e+08  
+50%       8.848446e+08  
+75%       1.319209e+09  
+max       2.577122e+09  
+std       5.527637e+08  
