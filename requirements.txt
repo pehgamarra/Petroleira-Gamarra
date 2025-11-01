@@ -5,3 +5,10 @@ Matplotlib
 Scikit-learn
 Seaborn
 Jupyter
+Faker
+Pathlib
+openpyxl
+os
+sys
+Streamlit
+importlib
