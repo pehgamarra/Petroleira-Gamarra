@@ -39,7 +39,7 @@ def train_baseline_models(path_dataset, target_col="target_producao_next"):
         })
 
     # Salvar previsões e métricas
-    df.to_csv("data/processed/predictions_baseline.csv", index=False)
-    pd.DataFrame(metrics).to_excel("reports/performance_baseline.xlsx", index=False)
+    df.to_csv("../data/processed/predictions_baseline.csv", index=False)
+    pd.DataFrame(metrics).to_excel("../reports/performance_baseline.xlsx", index=False)
 
     return df, metrics
