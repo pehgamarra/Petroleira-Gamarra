@@ -29,7 +29,7 @@ def train_baseline_models(path_dataset, target_col="target_producao_next"):
     metrics = []
     for col in ["pred_persistencia", "pred_media3m"]:
         mae = mean_absolute_error(df[target_col], df[col])
-        rmse = mean_squared_error(df[target_col], df[col], squared=False)
+        rmse = np.sqrt(mean_squared_error(df[target_col], df[col]))
         mape = mean_absolute_percentage_error(df[target_col], df[col])
         metrics.append({
             "modelo": col,
