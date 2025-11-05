@@ -1,5 +1,5 @@
 Python
-NumPy
+Numpy==1.26.4
 Pandas
 Matplotlib
 Scikit-learn
@@ -12,3 +12,16 @@ os
 sys
 Streamlit
 importlib
+neuralprophet
+pmdarima
+statsmodels
+fbprophet
+joblib
+datetime
+logging
+warnings
+tqdm
+dateutil
+plotly
+prophet
+xlrd

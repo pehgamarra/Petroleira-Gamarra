@@ -93,11 +93,11 @@ def train_time_series_models(df):
             })
             forecasts = pd.concat([forecasts, forecast_df], ignore_index=True)
 
-    os.makedirs("models", exist_ok=True)
-    os.makedirs("data/processed", exist_ok=True)
+    os.makedirs("../models", exist_ok=True)
+    os.makedirs("../data/processed", exist_ok=True)
 
     metrics_df = pd.DataFrame(metrics)
-    metrics_df.to_csv("../models/time_series_metrics.csv", index=False)
-    forecasts.to_csv("../data/processed/predictions_time_series.csv", index=False)
+    metrics_df.to_csv("../models/time_series_metrics.csv", index=False, mode='w')
+    forecasts.to_csv("../data/processed/predictions_time_series.csv", index=False, mode='w')
 
     return metrics_df, forecasts
