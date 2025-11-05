@@ -1,73 +1,77 @@
 import pandas as pd
 import numpy as np
+import joblib
+from pathlib import Path
 from sklearn.metrics import mean_absolute_error, mean_squared_error
-from statsmodels.tsa.statespace.sarimax import SARIMAX
-from prophet import Prophet
+from math import sqrt
+
 import warnings
 warnings.filterwarnings("ignore")
 
-def mean_absolute_percentage_error(y_true, y_pred):
-    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+from statsmodels.tsa.statespace.sarimax import SARIMAX
+from prophet import Prophet
 
-# =========================================================
-# 1) Modelo SARIMA
-# =========================================================
-def train_sarima(path_dataset, target_col="target_producao_next"):
-    """
-    Treina modelo SARIMA sobre série agregada de produção.
-    Retorna previsões e métricas.
-    """
-    print("Treinando modelo SARIMA...")
-
-    df = pd.read_csv(path_dataset, parse_dates=["data"]).sort_values("data")
-    df = df.dropna(subset=[target_col])
-
-    # Série temporal univariada
-    ts = df.set_index("data")[target_col]
-
-    # Divisão temporal (train até 2023, test 2024–2025)
-    ts_train = ts[ts.index.year <= 2023]
-    ts_test = ts[ts.index.year > 2023]
-
-    # Ajustar modelo simples SARIMA
-    model = SARIMAX(ts_train, order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
-    results = model.fit(disp=False)
-
-    # Previsões
-    forecast = results.get_forecast(steps=len(ts_test))
-    pred = forecast.predicted_mean
-
-    # Avaliar
-    mae = mean_absolute_error(ts_test, pred)
-    rmse = mean_squared_error(ts_test, pred, squared=False)
-    mape = mean_absolute_percentage_error(ts_test, pred)
-
-    metrics = {
-        "modelo": "SARIMA(1,1,1)(1,1,1,12)",
+# Função auxiliar de métricas
+def compute_metrics(y_true, y_pred, model_name):
+    mae = mean_absolute_error(y_true, y_pred)
+    rmse = sqrt(mean_squared_error(y_true, y_pred))
+    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    return {
+        "modelo": model_name,
         "MAE": mae,
         "RMSE": rmse,
         "MAPE": mape
     }
 
-    # Salvar previsões
-    df_pred = pd.DataFrame({"data": ts_test.index, "real": ts_test.values, "previsto": pred.values})
-    df_pred.to_csv("data/processed/predictions_sarima.csv", index=False)
 
+# Modelo SARIMA
+def train_sarima(df, target_col="producao_total_brl"):
+    df = df.set_index("data").asfreq("MS")
+    df[target_col] = df[target_col].interpolate()
+
+    train = df.loc[:'2023-12-01']
+    test = df.loc['2024-01-01':]
+
+    model = SARIMAX(train[target_col], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
+    result = model.fit(disp=False)
+
+    forecast = result.forecast(steps=len(test))
+    metrics = compute_metrics(test[target_col], forecast, "SARIMA")
+
+    joblib.dump(result, "models/sarima_model.pkl")
+    return metrics
+
+# Modelo Prophet
+def train_prophet(df, target_col="producao_total_brl"):
+    prophet_df = df[["data", target_col]].rename(columns={"data": "ds", target_col: "y"})
+    prophet_df["y"] = prophet_df["y"].interpolate()
+
+    train = prophet_df[prophet_df["ds"] <= "2023-12-01"]
+    test = prophet_df[prophet_df["ds"] > "2023-12-01"]
+
+    model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+    model.fit(train)
+
+    future = model.make_future_dataframe(periods=len(test), freq="MS")
+    forecast = model.predict(future)
+    forecast = forecast.tail(len(test))
+
+    metrics = compute_metrics(test["y"].values, forecast["yhat"].values, "Prophet")
+
+    joblib.dump(model, "models/prophet_model.pkl")
     return metrics
 
 
-# =========================================================
-# 2) Modelo Prophet
-# =========================================================
-def train_prophet(path_dataset, target_col="target_producao_next"):
+# Função principal chamada pelo notebook
+def train_time_series_models(dataset_path: str):
     """
-    Treina modelo Prophet sobre a série agregada de produção.
-    Retorna métricas de desempenho.
+    Treina e avalia modelos de séries temporais (SARIMA e Prophet)
+    Retorna métricas de ambos os modelos.
     """
-    print("Treinando modelo Prophet...")
+    df = pd.read_csv(dataset_path)
+    df["data"] = pd.to_datetime(df["data"])
 
-    df = pd.read_csv(path_dataset, parse_dates=["data"]).sort_values("data")
-    df = df.dropna(subset=[target_col])
+    sarima_metrics = train_sarima(df)
+    prophet_metrics = train_prophet(df)
 
-    # Preparar formato exigido pelo Prophet
-    df_prophet = df_
+    return sarima_metrics, prophet_metrics
