@@ -1,77 +1,62 @@
 import pandas as pd
-import numpy as np
-import joblib
-from pathlib import Path
-from sklearn.metrics import mean_absolute_error, mean_squared_error
-from math import sqrt
-
-import warnings
-warnings.filterwarnings("ignore")
-
 from statsmodels.tsa.statespace.sarimax import SARIMAX
 from prophet import Prophet
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+import os
 
-# Função auxiliar de métricas
-def compute_metrics(y_true, y_pred, model_name):
-    mae = mean_absolute_error(y_true, y_pred)
-    rmse = sqrt(mean_squared_error(y_true, y_pred))
-    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
-    return {
-        "modelo": model_name,
-        "MAE": mae,
-        "RMSE": rmse,
-        "MAPE": mape
-    }
-
-
-# Modelo SARIMA
-def train_sarima(df, target_col="producao_total_brl"):
+def train_sarima(df, target_col):
     df = df.set_index("data").asfreq("MS")
     df[target_col] = df[target_col].interpolate()
 
     train = df.loc[:'2023-12-01']
     test = df.loc['2024-01-01':]
 
-    model = SARIMAX(train[target_col], order=(1, 1, 1), seasonal_order=(1, 1, 1, 12))
-    result = model.fit(disp=False)
+    model = SARIMAX(train[target_col], order=(1,1,1), seasonal_order=(1,1,1,12))
+    results = model.fit(disp=False)
+    forecast = results.predict(start=test.index[0], end=test.index[-1])
 
-    forecast = result.forecast(steps=len(test))
-    metrics = compute_metrics(test[target_col], forecast, "SARIMA")
+    metrics = {
+        "target": target_col,
+        "modelo": "SARIMA",
+        "MAE": mean_absolute_error(test[target_col], forecast),
+        "RMSE": mean_squared_error(test[target_col], forecast, squared=False),
+        "MAPE": mean_absolute_percentage_error(test[target_col], forecast)
+    }
 
-    joblib.dump(result, "models/sarima_model.pkl")
     return metrics
 
-# Modelo Prophet
-def train_prophet(df, target_col="producao_total_brl"):
-    prophet_df = df[["data", target_col]].rename(columns={"data": "ds", target_col: "y"})
-    prophet_df["y"] = prophet_df["y"].interpolate()
+def train_prophet(df, target_col):
+    df_prophet = df[["data", target_col]].rename(columns={"data": "ds", target_col: "y"})
+    train = df_prophet[df_prophet["ds"] <= "2023-12-01"]
+    test = df_prophet[df_prophet["ds"] >= "2024-01-01"]
 
-    train = prophet_df[prophet_df["ds"] <= "2023-12-01"]
-    test = prophet_df[prophet_df["ds"] > "2023-12-01"]
-
-    model = Prophet(yearly_seasonality=True, weekly_seasonality=False, daily_seasonality=False)
+    model = Prophet()
     model.fit(train)
+    forecast = model.predict(test)
 
-    future = model.make_future_dataframe(periods=len(test), freq="MS")
-    forecast = model.predict(future)
-    forecast = forecast.tail(len(test))
+    metrics = {
+        "target": target_col,
+        "modelo": "Prophet",
+        "MAE": mean_absolute_error(test["y"], forecast["yhat"]),
+        "RMSE": mean_squared_error(test["y"], forecast["yhat"], squared=False),
+        "MAPE": mean_absolute_percentage_error(test["y"], forecast["yhat"])
+    }
 
-    metrics = compute_metrics(test["y"].values, forecast["yhat"].values, "Prophet")
-
-    joblib.dump(model, "models/prophet_model.pkl")
     return metrics
 
-
-# Função principal chamada pelo notebook
-def train_time_series_models(dataset_path: str):
-    """
-    Treina e avalia modelos de séries temporais (SARIMA e Prophet)
-    Retorna métricas de ambos os modelos.
-    """
+def train_time_series_models(dataset_path):
     df = pd.read_csv(dataset_path)
     df["data"] = pd.to_datetime(df["data"])
 
-    sarima_metrics = train_sarima(df)
-    prophet_metrics = train_prophet(df)
+    results = []
+    for target_col in ["target_producao_next", "target_receita_next"]:
+        if target_col not in df.columns:
+            continue
 
-    return sarima_metrics, prophet_metrics
+        results.append(train_sarima(df.copy(), target_col))
+        results.append(train_prophet(df.copy(), target_col))
+
+    os.makedirs("models", exist_ok=True)
+    pd.DataFrame(results).to_csv("models/time_series_metrics.csv", index=False)
+
+    return pd.DataFrame(results)

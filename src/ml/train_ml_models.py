@@ -1,104 +1,57 @@
 import pandas as pd
-import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from xgboost import XGBRegressor
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 import joblib
-import warnings
-warnings.filterwarnings("ignore")
+import os
 
-def mean_absolute_percentage_error(y_true, y_pred):
-    return np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+def train_ml_models(dataset_path):
+    df = pd.read_csv(dataset_path)
+    df["data"] = pd.to_datetime(df["data"])
 
-
-# Função principal
-def train_ml_models(path_dataset, target_col="target_producao_next"):
-    """
-    Treina modelos de machine learning (Random Forest e XGBoost)
-    para prever a produção futura.
-    """
-
-    print("Treinando modelos de ML...")
-
-    # 1. Carregar dataset
-    df = pd.read_csv(path_dataset, parse_dates=["data"])
-    df = df.dropna(subset=[target_col])
-
-    # 2. Selecionar features
     feature_cols = [
-        "producao_total", "taxa_crescimento", "var_3m",
-        "dia", "mes", "trimestre", "ano"
+        'preco_medio_brl', 'preco_lag_1', 'producao_lag_1',
+        'preco_lag_3', 'producao_lag_3', 'preco_lag_6', 'producao_lag_6',
+        'producao_roll_3', 'producao_roll_12',
+        'shock_2008', 'shock_2014', 'shock_2020', 'shock_2022',
+        'mes_sin', 'mes_cos'
     ]
-    X = df[feature_cols]
-    y = df[target_col]
 
-    # 3. Divisão temporal
-    train_mask = df["data"].dt.year <= 2023
-    test_mask = df["data"].dt.year > 2023
+    results = []
+    os.makedirs("models", exist_ok=True)
 
-    X_train, X_test = X[train_mask], X[test_mask]
-    y_train, y_test = y[train_mask], y[test_mask]
+    for target_col in ["target_producao_next", "target_receita_next"]:
+        if target_col not in df.columns:
+            continue
 
-    # 4. Modelo Random Forest
-    rf_model = RandomForestRegressor(
-        n_estimators=300,
-        max_depth=8,
-        random_state=42
-    )
-    rf_model.fit(X_train, y_train)
-    rf_pred = rf_model.predict(X_test)
+        X = df[feature_cols].fillna(0)
+        y = df[target_col].fillna(0)
 
-    rf_metrics = {
-        "modelo": "Random Forest",
-        "MAE": mean_absolute_error(y_test, rf_pred),
-        "RMSE": mean_squared_error(y_test, rf_pred, squared=False),
-        "MAPE": mean_absolute_percentage_error(y_test, rf_pred)
-    }
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
 
-    # Importância das variáveis
-    rf_importance = pd.DataFrame({
-        "feature": feature_cols,
-        "importance": rf_model.feature_importances_
-    }).sort_values("importance", ascending=False)
-    rf_importance.to_csv("data/processed/feature_importance_rf.csv", index=False)
+        models = {
+            "RandomForest": RandomForestRegressor(n_estimators=200, random_state=42),
+            "XGBoost": XGBRegressor(n_estimators=300, learning_rate=0.05, max_depth=5)
+        }
 
-    # 5. Modelo XGBoost
-    xgb_model = XGBRegressor(
-        n_estimators=500,
-        learning_rate=0.05,
-        max_depth=6,
-        subsample=0.8,
-        colsample_bytree=0.8,
-        random_state=42
-    )
-    xgb_model.fit(X_train, y_train)
-    xgb_pred = xgb_model.predict(X_test)
+        for name, model in models.items():
+            model.fit(X_train, y_train)
+            preds = model.predict(X_test)
 
-    xgb_metrics = {
-        "modelo": "XGBoost",
-        "MAE": mean_absolute_error(y_test, xgb_pred),
-        "RMSE": mean_squared_error(y_test, xgb_pred, squared=False),
-        "MAPE": mean_absolute_percentage_error(y_test, xgb_pred)
-    }
+            mae = mean_absolute_error(y_test, preds)
+            rmse = mean_squared_error(y_test, preds, squared=False)
+            mape = mean_absolute_percentage_error(y_test, preds)
 
-    xgb_importance = pd.DataFrame({
-        "feature": feature_cols,
-        "importance": xgb_model.feature_importances_
-    }).sort_values("importance", ascending=False)
-    xgb_importance.to_csv("data/processed/feature_importance_xgb.csv", index=False)
+            results.append({
+                "target": target_col,
+                "modelo": name,
+                "MAE": mae,
+                "RMSE": rmse,
+                "MAPE": mape
+            })
 
-    # 6. Salvar previsões e modelos
-    df_pred = pd.DataFrame({
-        "data": df.loc[test_mask, "data"],
-        "real": y_test,
-        "rf_previsto": rf_pred,
-        "xgb_previsto": xgb_pred
-    })
-    df_pred.to_csv("data/processed/predictions_ml.csv", index=False)
+            joblib.dump(model, f"models/{name}_{target_col}.pkl")
 
-    joblib.dump(rf_model, "models/random_forest.pkl")
-    joblib.dump(xgb_model, "models/xgboost.pkl")
-
-    print("Treinamento concluído com sucesso.")
-    return rf_metrics, xgb_metrics
+    pd.DataFrame(results).to_csv("models/ml_metrics.csv", index=False)
+    return pd.DataFrame(results)
