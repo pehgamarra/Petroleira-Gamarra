@@ -113,7 +113,7 @@ def export_predictions_for_powerbi(
         metrics.to_excel(writer, sheet_name="MétricasModelos", index=False)
         meta_info.to_excel(writer, sheet_name="Metadados", index=False)
 
-    print(f"✅ Exportado com sucesso: {output_path}")
+    print(f"Exportado com sucesso")
     print("Abas incluídas: Previsões | ResumoMensal | MétricasModelos | Metadados")
 
     return {
@@ -122,25 +122,3 @@ def export_predictions_for_powerbi(
         "metricas": metrics,
         "metadados": meta_info
     }
-
-
-# Exemplo de uso isolado
-if __name__ == "__main__":
-    # Exemplo simulado
-    pred_ml = pd.DataFrame({
-        "data": pd.date_range("2024-01-01", periods=12, freq="M"),
-        "real": [100,120,115,130,140,160,150,170,165,180,190,200],
-        "rf_previsto": [105,118,112,128,135,158,148,165,160,182,188,198],
-        "xgb_previsto": [102,121,116,132,142,159,152,169,163,178,192,201],
-    })
-
-    metrics_df = pd.DataFrame({
-        "target": ["target_producao_next", "target_receita_next"],
-        "modelo": ["RandomForest", "XGBoost"],
-        "MAE": [467000, 348000],
-        "RMSE": [550000, 451000],
-        "MAPE": [0.054, 0.041],
-        "R2": [0.63, 0.65]
-    })
-
-    export_predictions_for_powerbi(pred_ml, metrics_df)
